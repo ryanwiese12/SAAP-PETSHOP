@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <title>SAAP - Agendamentos do Dia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>SAAP - Agendamentos do Dia</title>
   <style>
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -73,6 +73,33 @@
       font-size: 15px;
       margin-top: 10px;
     }
+
+    /* Estilos Responsivos */
+    @media (max-width: 768px) {
+      nav {
+        flex-direction: column; /* Links da navegação empilham verticalmente */
+        gap: 10px;
+        padding: 10px;
+      }
+      nav a {
+        text-align: center;
+        padding: 5px 0;
+      }
+      main {
+        padding: 15px; /* Reduz o padding em telas menores */
+      }
+      section {
+        padding: 15px;
+      }
+      table {
+        display: block; /* Permite scroll horizontal para tabelas */
+        overflow-x: auto;
+        white-space: nowrap; /* Evita que o conteúdo da célula quebre linha */
+      }
+      th, td {
+        min-width: 100px; /* Largura mínima para colunas da tabela */
+      }
+    }
   </style>
 </head>
 <body>
@@ -82,8 +109,7 @@
     <a href="clientes.html">👤 Clientes e Pets</a>
     <a href="agendamento.html">🗓️ Novo Agendamento</a>
     <a href="financeiro.html">💰 Financeiro</a>
-    <a href="relatorios.html">📊 Relatórios</a>
-  </nav>
+    <a href="relatorios.html">📊 Relatórios</a> </nav>
 
   <main>
     <h1>Agendamentos do Dia</h1>
@@ -147,35 +173,23 @@
 
     function finalizarServico(index) {
       const agendamentos = JSON.parse(localStorage.getItem('agendamentos') || '[]');
-      // Acha o agendamento real pelo filtro, pois o índice pode mudar
-      const agendamentosPendentesHoje = agendamentos.filter(a => a.status === 'Agendado' && a.data.startsWith(new Date().toISOString().slice(0, 10)));
-      const servicoParaFinalizar = agendamentosPendentesHoje[index];
+      const servico = agendamentos.filter(a => a.status === 'Agendado')[index];
 
-      if (!servicoParaFinalizar) {
-          console.error("Serviço a ser finalizado não encontrado.");
-          return;
-      }
-
-      // Encontra o índice real no array 'agendamentos' completo
-      const realIndex = agendamentos.findIndex(a => a === servicoParaFinalizar);
-
-
-      servicoParaFinalizar.status = 'Finalizado';
+      servico.status = 'Finalizado';
       localStorage.setItem('agendamentos', JSON.stringify(agendamentos));
 
       const financeiro = JSON.parse(localStorage.getItem('financeiro') || '[]');
       let valor = 0;
-      if (servicoParaFinalizar.servico === 'Banho') valor = 30;
-      else if (servicoParaFinalizar.servico === 'Tosa') valor = 50;
-      else if (servicoParaFinalizar.servico === 'Banho e Tosa') valor = 70;
+      if (servico.servico === 'Banho') valor = 30;
+      else if (servico.servico === 'Tosa') valor = 50;
+      else if (servico.servico === 'Banho e Tosa') valor = 70;
 
       financeiro.push({
-        cliente: servicoParaFinalizar.cliente,
-        pet: servicoParaFinalizar.pet,
-        servico: servicoParaFinalizar.servico,
+        cliente: servico.cliente,
+        pet: servico.pet,
+        servico: servico.servico,
         valor: valor,
-        data: new Date().toISOString(),
-        recebido: false // Default para novo item no financeiro
+        data: new Date().toISOString()
       });
       localStorage.setItem('financeiro', JSON.stringify(financeiro));
 
@@ -194,7 +208,7 @@
         const data = new Date(a.data);
         if (filtro === 'hoje') return data.toDateString() === agora.toDateString();
         if (filtro === 'semana') {
-          const seteDias = new Date(agora);
+          const seteDias = new Date();
           seteDias.setDate(agora.getDate() - 7);
           return data >= seteDias && data <= agora;
         }
