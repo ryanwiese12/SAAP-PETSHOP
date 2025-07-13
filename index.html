@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAAP - Agendamentos do Dia</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f4f6f8;
+      color: #333;
+    }
+    nav {
+      background: #34495e;
+      padding: 15px;
+      display: flex;
+      gap: 20px;
+      font-size: 16px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      padding: 30px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    h1, h2 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #2980b9;
+      color: white;
+    }
+    button {
+      padding: 6px 12px;
+      background-color: #2ecc71;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #27ae60;
+    }
+    select {
+      padding: 8px;
+      font-size: 15px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html">🏠 Início</a>
+    <a href="clientes.html">👤 Clientes e Pets</a>
+    <a href="agendamento.html">🗓️ Novo Agendamento</a>
+    <a href="financeiro.html">💰 Financeiro</a>
+    <a href="relatorios.html">📊 Relatórios</a>
+  </nav>
+
+  <main>
+    <h1>Agendamentos do Dia</h1>
+    <section>
+      <table id="tabelaAgendamentos">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Pet</th>
+            <th>Serviço</th>
+            <th>Horário</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <h2 id="servicos">Serviços Realizados</h2>
+    <section>
+      <label for="filtro">Filtrar por:</label>
+      <select id="filtro">
+        <option value="hoje">Hoje</option>
+        <option value="semana">Últimos 7 dias</option>
+        <option value="mes">Este mês</option>
+      </select>
+      <table id="tabelaServicos">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Pet</th>
+            <th>Serviço</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    function carregarAgendamentos() {
+      const agendamentos = JSON.parse(localStorage.getItem('agendamentos') || '[]');
+      const hoje = new Date().toISOString().slice(0, 10);
+      const tbody = document.querySelector('#tabelaAgendamentos tbody');
+      tbody.innerHTML = '';
+
+      agendamentos
+        .filter(a => a.status === 'Agendado' && a.data.startsWith(hoje))
+        .forEach((a, i) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${a.cliente}</td>
+            <td>${a.pet}</td>
+            <td>${a.servico}</td>
+            <td>${a.data.replace("T", " ")}</td>
+            <td><button onclick="finalizarServico(${i})">Finalizar</button></td>`;
+          tbody.appendChild(tr);
+        });
+    }
+
+    function finalizarServico(index) {
+      const agendamentos = JSON.parse(localStorage.getItem('agendamentos') || '[]');
+      // Acha o agendamento real pelo filtro, pois o índice pode mudar
+      const agendamentosPendentesHoje = agendamentos.filter(a => a.status === 'Agendado' && a.data.startsWith(new Date().toISOString().slice(0, 10)));
+      const servicoParaFinalizar = agendamentosPendentesHoje[index];
+
+      if (!servicoParaFinalizar) {
+          console.error("Serviço a ser finalizado não encontrado.");
+          return;
+      }
+
+      // Encontra o índice real no array 'agendamentos' completo
+      const realIndex = agendamentos.findIndex(a => a === servicoParaFinalizar);
+
+
+      servicoParaFinalizar.status = 'Finalizado';
+      localStorage.setItem('agendamentos', JSON.stringify(agendamentos));
+
+      const financeiro = JSON.parse(localStorage.getItem('financeiro') || '[]');
+      let valor = 0;
+      if (servicoParaFinalizar.servico === 'Banho') valor = 30;
+      else if (servicoParaFinalizar.servico === 'Tosa') valor = 50;
+      else if (servicoParaFinalizar.servico === 'Banho e Tosa') valor = 70;
+
+      financeiro.push({
+        cliente: servicoParaFinalizar.cliente,
+        pet: servicoParaFinalizar.pet,
+        servico: servicoParaFinalizar.servico,
+        valor: valor,
+        data: new Date().toISOString(),
+        recebido: false // Default para novo item no financeiro
+      });
+      localStorage.setItem('financeiro', JSON.stringify(financeiro));
+
+      carregarAgendamentos();
+      carregarServicosRealizados(document.getElementById('filtro').value);
+    }
+
+    function carregarServicosRealizados(filtro) {
+      const agendamentos = JSON.parse(localStorage.getItem('agendamentos') || '[]');
+      const tbody = document.querySelector('#tabelaServicos tbody');
+      const agora = new Date();
+      tbody.innerHTML = '';
+
+      const filtrados = agendamentos.filter(a => {
+        if (a.status !== 'Finalizado') return false;
+        const data = new Date(a.data);
+        if (filtro === 'hoje') return data.toDateString() === agora.toDateString();
+        if (filtro === 'semana') {
+          const seteDias = new Date(agora);
+          seteDias.setDate(agora.getDate() - 7);
+          return data >= seteDias && data <= agora;
+        }
+        if (filtro === 'mes') return data.getMonth() === agora.getMonth() && data.getFullYear() === agora.getFullYear();
+        return true;
+      });
+
+      filtrados.forEach(a => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${a.cliente}</td>
+          <td>${a.pet}</td>
+          <td>${a.servico}</td>
+          <td>${a.data.replace("T", " ")}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('filtro').addEventListener('change', e => {
+      carregarServicosRealizados(e.target.value);
+    });
+
+    carregarAgendamentos();
+    carregarServicosRealizados('hoje');
+  </script>
+</body>
+</html>

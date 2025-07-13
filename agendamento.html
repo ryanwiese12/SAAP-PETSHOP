@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAAP - Novo Agendamento</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6f8; }
+    nav { background: #34495e; padding: 15px; display: flex; gap: 20px; font-size: 16px; }
+    nav a { color: white; text-decoration: none; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 800px; margin: auto; padding: 30px; }
+    h1 { color: #2c3e50; margin-bottom: 20px; }
+    section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    select, input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+    button { background-color: #3498db; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #2980b9; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">🏠 Início</a>
+    <a href="clientes.html">👤 Clientes e Pets</a>
+    <a href="agendamento.html">🗓️ Novo Agendamento</a>
+    <a href="financeiro.html">💰 Financeiro</a>
+  </nav>
+
+  <main>
+    <h1>Agendar Banho/Tosa</h1>
+    <section>
+      <select id="clienteSelect"></select>
+      <select id="petSelect"></select>
+      <input type="datetime-local" id="dataHora" />
+      <select id="servico">
+        <option value="Banho">Banho</option>
+        <option value="Tosa">Tosa</option>
+        <option value="Banho e Tosa">Banho e Tosa</option>
+      </select>
+      <button onclick="agendar()">Agendar</button>
+    </section>
+  </main>
+
+  <script>
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    const pets = JSON.parse(localStorage.getItem('pets') || '[]');
+
+    const clienteSelect = document.getElementById('clienteSelect');
+    const petSelect = document.getElementById('petSelect');
+
+    clienteSelect.innerHTML = '<option value="">Selecione o cliente</option>' +
+      clientes.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('');
+
+    clienteSelect.addEventListener('change', function() {
+      const nome = this.value;
+      const petsCliente = pets.filter(p => p.dono === nome);
+      petSelect.innerHTML = petsCliente.map(p => `<option value="${p.nome}">${p.nome}</option>`).join('');
+    });
+
+    function agendar() {
+      const agendamentos = JSON.parse(localStorage.getItem('agendamentos') || '[]');
+
+      const dataHoraInput = document.getElementById('dataHora').value; //
+
+      const novo = {
+        cliente: clienteSelect.value,
+        pet: petSelect.value,
+        servico: document.getElementById('servico').value,
+        data: dataHoraInput, //
+        timestamp: new Date(dataHoraInput).getTime(), // Adiciona o timestamp
+        status: 'Agendado'
+      };
+
+      if (!novo.cliente || !novo.pet || !novo.data) {
+        alert("Preencha todos os campos.");
+        return;
+      }
+
+      agendamentos.push(novo);
+      localStorage.setItem('agendamentos', JSON.stringify(agendamentos));
+      alert("Agendamento feito com sucesso!");
+      document.getElementById('dataHora').value = "";
+    }
+  </script>
+</body>
+</html>
