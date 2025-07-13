@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAAP - Relatórios</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      background: #f4f6f8;
+      color: #333;
+    }
+    nav {
+      background: #34495e;
+      padding: 15px;
+      display: flex;
+      gap: 20px;
+      font-size: 16px;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    main {
+      padding: 30px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    /* Dashboard Kiwify Style */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .dashboard-filters {
+      display: flex;
+      gap: 10px;
+    }
+    .dashboard-filters select {
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background-color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      min-width: 150px;
+    }
+
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .dashboard-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      padding: 25px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .dashboard-card .title {
+      font-size: 15px;
+      color: #6a737d;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dashboard-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+    .dashboard-card .icon {
+      font-size: 18px;
+      color: #007bff;
+    }
+
+    /* Chart Section */
+    .chart-section {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      padding: 25px;
+    }
+    .chart-section h2 {
+      font-size: 20px;
+      color: #2c3e50;
+      margin-top: 0;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .chart-container {
+      position: relative;
+      height: 350px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">🏠 Início</a>
+    <a href="clientes.html">👤 Clientes e Pets</a>
+    <a href="agendamento.html">🗓️ Novo Agendamento</a>
+    <a href="financeiro.html">💰 Financeiro</a>
+    <a href="relatorios.html">📊 Relatórios</a>
+  </nav>
+
+  <main>
+    <h1>Dashboard de Relatórios</h1>
+
+    <div class="dashboard-header">
+      <div class="dashboard-filters">
+        <select id="filtroRelatorio">
+          <option value="hoje" selected>Hoje</option>
+          <option value="semana">Últimos 7 dias</option>
+          <option value="ultimos30dias">Últimos 30 dias</option>
+          <option value="mes">Este mês</option>
+          <option value="ano">Este ano</option>
+          <option value="todo">Todo o tempo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="dashboard-cards">
+      <div class="dashboard-card">
+        <div class="title">
+          <span class="icon">💰</span> Total Recebido
+        </div>
+        <div class="value" id="cardTotalRecebido">R$ 0,00</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="title">
+          <span class="icon">🐾</span> Total Banho & Tosa
+        </div>
+        <div class="value" id="cardTotalServicos">0</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="title">
+          <span class="icon">💲</span> Média por Serviço
+        </div>
+        <div class="value" id="cardMediaServico">R$ 0,00</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="title">
+          <span class="icon">👥</span> Clientes Atendidos
+        </div>
+        <div class="value" id="cardTotalClientes">0</div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>Entradas Financeiras por Período</h2>
+      <div class="chart-container">
+        <canvas id="graficoEntradasRelatorio"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let chartEntradasRelatorio = null;
+
+    function formatarMoeda(valor) {
+      return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
+    }
+
+    function getDadosFiltrados(filtro) {
+      const financeiro = JSON.parse(localStorage.getItem('financeiro') || '[]');
+      let dadosFiltrados = [];
+      const agora = new Date();
+      agora.setHours(0, 0, 0, 0); // Zera a hora para comparações de data
+
+      if (filtro === 'todo') {
+        dadosFiltrados = financeiro;
+      } else {
+        dadosFiltrados = financeiro.filter(item => {
+          const dataItem = new Date(item.data);
+          dataItem.setHours(0, 0, 0, 0); // Zera a hora para comparações de data
+
+          if (filtro === 'hoje') {
+            const hojeInicio = new Date();
+            hojeInicio.setHours(0, 0, 0, 0);
+            const hojeFim = new Date();
+            hojeFim.setHours(23, 59, 59, 999);
+            const itemDate = new Date(item.data);
+            return itemDate >= hojeInicio && itemDate <= hojeFim;
+          }
+          if (filtro === 'semana') {
+            const seteDiasAtras = new Date(agora);
+            seteDiasAtras.setDate(agora.getDate() - 6);
+            return dataItem >= seteDiasAtras && dataItem <= agora;
+          }
+          if (filtro === 'ultimos30dias') {
+            const trintaDiasAtras = new Date(agora);
+            trintaDiasAtras.setDate(agora.getDate() - 29);
+            return dataItem >= trintaDiasAtras && dataItem <= agora;
+          }
+          if (filtro === 'mes') {
+            return dataItem.getMonth() === agora.getMonth() && dataItem.getFullYear() === agora.getFullYear();
+          }
+          if (filtro === 'ano') {
+            return dataItem.getFullYear() === agora.getFullYear();
+          }
+          return false;
+        });
+      }
+      return dadosFiltrados;
+    }
+
+    function atualizarDashboardCards(filtro) {
+      const dados = getDadosFiltrados(filtro);
+      const recebidos = dados.filter(f => f.recebido);
+
+      const totalRecebido = recebidos.reduce((s, f) => s + Number(f.valor), 0);
+      const totalServicos = recebidos.length;
+      const mediaPorServico = totalServicos > 0 ? totalRecebido / totalServicos : 0;
+      const clientesAtendidos = new Set(recebidos.map(f => f.cliente)).size;
+
+      document.getElementById('cardTotalRecebido').textContent = formatarMoeda(totalRecebido);
+      document.getElementById('cardTotalServicos').textContent = totalServicos;
+      document.getElementById('cardMediaServico').textContent = formatarMoeda(mediaPorServico);
+      document.getElementById('cardTotalClientes').textContent = clientesAtendidos;
+    }
+
+    function gerarGraficoEntradas(filtro) {
+      const dados = getDadosFiltrados(filtro).filter(f => f.recebido);
+      let labels = [];
+      let valores = [];
+
+      if (filtro === 'hoje') {
+        // Gera labels para todas as 24 horas do dia
+        for (let h = 0; h < 24; h++) {
+          labels.push(`${h}:00`);
+          valores.push(0); // Inicializa com 0 para cada hora
+        }
+
+        // Agrupa valores por hora
+        dados.forEach(item => {
+          const itemDate = new Date(item.data);
+          const hour = itemDate.getHours();
+          valores[hour] += Number(item.valor);
+        });
+
+      } else {
+        const entradasPorPeriodo = {};
+
+        dados.forEach(item => {
+          let dataKey;
+          if (filtro === 'semana' || filtro === 'ultimos30dias') {
+             // Formato DD/MM para períodos curtos
+            const d = new Date(item.data);
+            dataKey = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+          } else {
+             // Formato DD/MM/YYYY para períodos mais longos
+             dataKey = new Date(item.data).toLocaleDateString('pt-BR');
+          }
+          entradasPorPeriodo[dataKey] = (entradasPorPeriodo[dataKey] || 0) + Number(item.valor);
+        });
+
+        labels = Object.keys(entradasPorPeriodo).sort((a, b) => {
+            const parseDate = (dateStr) => {
+                if (dateStr.length <= 5) { // DD/MM format
+                    const [day, month] = dateStr.split('/').map(Number);
+                    const currentYear = new Date().getFullYear(); // Assume current year for sorting
+                    return new Date(currentYear, month - 1, day);
+                } else { // DD/MM/YYYY format
+                    const [day, month, year] = dateStr.split('/').map(Number);
+                    return new Date(year, month - 1, day);
+                }
+            };
+            return parseDate(a) - parseDate(b);
+        });
+        valores = labels.map(label => entradasPorPeriodo[label]);
+      }
+
+      const ctx = document.getElementById('graficoEntradasRelatorio').getContext('2d');
+      if (chartEntradasRelatorio) {
+        chartEntradasRelatorio.destroy();
+      }
+
+      chartEntradasRelatorio = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Entradas (R$)',
+            data: valores,
+            backgroundColor: 'rgba(52, 152, 219, 0.4)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                font: {
+                  size: 14,
+                  family: 'Inter',
+                },
+                color: '#555',
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed.y !== null) {
+                    label += formatarMoeda(context.parsed.y);
+                  }
+                  return label;
+                }
+              },
+              titleFont: {
+                  size: 14,
+                  family: 'Inter'
+              },
+              bodyFont: {
+                  size: 14,
+                  family: 'Inter'
+              },
+              padding: 10,
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              displayColors: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Valor (R$)',
+                font: {
+                  size: 14,
+                  family: 'Inter',
+                },
+                color: '#555',
+              },
+              ticks: {
+                callback: function(value) {
+                  return formatarMoeda(value);
+                },
+                font: {
+                  family: 'Inter',
+                },
+                color: '#777',
+              },
+              grid: {
+                color: 'rgba(0, 0, 0, 0.08)',
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Período',
+                font: {
+                  size: 14,
+                  family: 'Inter',
+                },
+                color: '#555',
+              },
+              ticks: {
+                font: {
+                  family: 'Inter',
+                },
+                color: '#777',
+              },
+              grid: {
+                display: false,
+              }
+            }
+          }
+        }
+      });
+    }
+
+    document.getElementById('filtroRelatorio').addEventListener('change', function() {
+      const filtroSelecionado = this.value;
+      atualizarDashboardCards(filtroSelecionado);
+      gerarGraficoEntradas(filtroSelecionado);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const filtroInicial = document.getElementById('filtroRelatorio').value;
+      atualizarDashboardCards(filtroInicial);
+      gerarGraficoEntradas(filtroInicial);
+    });
+  </script>
+</body>
+</html>
