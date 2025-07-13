@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAAP - Financeiro</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6f8; display: flex; }
+    nav { background: #34495e; padding: 15px; display: flex; gap: 20px; font-size: 16px; color: white; position: fixed; width: 100%; top: 0; z-index: 10; }
+    nav a { color: white; text-decoration: none; font-weight: bold; }
+    nav a:hover { text-decoration: underline; }
+
+    .container { display: flex; width: 100%; padding-top: 60px; }
+    aside { width: 250px; background: #2c3e50; color: white; padding: 20px; height: 100vh; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+    aside h2 { color: #ecf0f1; }
+    .card { background: #34495e; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+    .card p { font-size: 20px; font-weight: bold; margin: 5px 0; }
+
+    main { flex: 1; padding: 30px; }
+    h1, h2 { color: #2c3e50; margin-bottom: 20px; }
+    section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; margin-bottom: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    th { background-color: #2980b9; color: white; }
+    .btn { padding: 6px 12px; background-color: #2ecc71; border: none; border-radius: 4px; color: white; cursor: pointer; }
+    .btn:hover { background-color: #27ae60; }
+    .btn-danger { background-color: #e67e22; }
+    .btn-danger:hover { background-color: #ca6f1e; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">🏠 Início</a>
+    <a href="clientes.html">👤 Clientes</a>
+    <a href="agendamento.html">🗓️ Agendamento</a>
+    <a href="financeiro.html">💰 Financeiro</a>
+  </nav>
+
+  <div class="container">
+    <aside>
+      <h2>Dashboard</h2>
+      <div class="card">
+        <p>Total Recebido:</p>
+        <p id="dashboardRecebido">R$ 0,00</p>
+      </div>
+      <div class="card">
+        <p>Total Pendente:</p>
+        <p id="dashboardPendente">R$ 0,00</p>
+      </div>
+      <div class="card">
+        <p>Total Serviços:</p>
+        <p id="dashboardServicos">0</p>
+      </div>
+      <div class="card">
+        <p>Clientes:</p>
+        <p id="dashboardClientes">0</p>
+      </div>
+    </aside>
+
+    <main>
+      <h1>Financeiro</h1>
+
+      <section>
+        <h2>Serviços Pendentes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Pet</th>
+              <th>Serviço</th>
+              <th>Valor</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaPendentes"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Recebidos</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Pet</th>
+              <th>Serviço</th>
+              <th>Valor</th>
+              <th>Recibo</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaRecebidos"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    const financeiro = JSON.parse(localStorage.getItem('financeiro') || '[]');
+
+    function formatar(valor) {
+      return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
+    }
+
+    function atualizarDashboard() {
+      const recebidos = financeiro.filter(f => f.recebido);
+      const pendentes = financeiro.filter(f => !f.recebido);
+      document.getElementById('dashboardRecebido').textContent = formatar(recebidos.reduce((s, f) => s + Number(f.valor), 0));
+      document.getElementById('dashboardPendente').textContent = formatar(pendentes.reduce((s, f) => s + Number(f.valor), 0));
+      document.getElementById('dashboardServicos').textContent = financeiro.length;
+      document.getElementById('dashboardClientes').textContent = new Set(financeiro.map(f => f.cliente)).size;
+    }
+
+    function carregarTabelas() {
+      const tbodyPendentes = document.getElementById('tabelaPendentes');
+      const tbodyRecebidos = document.getElementById('tabelaRecebidos');
+      tbodyPendentes.innerHTML = '';
+      tbodyRecebidos.innerHTML = '';
+
+      financeiro.forEach((item, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.cliente}</td>
+          <td>${item.pet}</td>
+          <td>${item.servico}</td>
+          <td>${formatar(item.valor)}</td>`;
+        if (item.recebido) {
+          const trRec = tr.cloneNode(true);
+          const td = document.createElement('td');
+          td.innerHTML = '<button class="btn" onclick="baixarRecibo(' + i + ')">📄 Baixar Recibo</button>';
+          trRec.appendChild(td);
+          tbodyRecebidos.appendChild(trRec);
+        } else {
+          const td = document.createElement('td');
+          td.innerHTML = '<button class="btn" onclick="marcarRecebido(' + i + ')">Recebido</button>';
+          tr.appendChild(td);
+          tbodyPendentes.appendChild(tr);
+        }
+      });
+    }
+
+    function marcarRecebido(index) {
+      financeiro[index].recebido = true;
+      localStorage.setItem('financeiro', JSON.stringify(financeiro));
+      carregarTabelas();
+      atualizarDashboard();
+    }
+
+    function baixarRecibo(index) {
+      const item = financeiro[index];
+      const doc = new jsPDF();
+      doc.setFillColor(41, 128, 185);
+      doc.rect(0, 0, 210, 20, 'F');
+      doc.setFontSize(20);
+      doc.setTextColor(255, 255, 255);
+      doc.text("RECIBO SAAP", 105, 13, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(14);
+      doc.text(`Cliente: ${item.cliente}`, 20, 40);
+      doc.text(`Pet: ${item.pet}`, 20, 50);
+      doc.text(`Serviço: ${item.servico}`, 20, 60);
+      doc.text(`Valor: ${formatar(item.valor)}`, 20, 70);
+      doc.text(`Data: ${new Date().toLocaleString()}`, 20, 80);
+      doc.line(20, 110, 190, 110);
+      doc.text("Assinatura", 105, 120, { align: 'center' });
+      doc.save(`recibo_${item.cliente}.pdf`);
+    }
+
+    carregarTabelas();
+    atualizarDashboard();
+  </script>
+</body>
+</html>
